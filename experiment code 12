@@ -1,0 +1,252 @@
+
+-- =======================================================
+-- LIBRARY MANAGEMENT SYSTEM - EXPERIMENT 11/12
+-- =======================================================
+SET SERVEROUTPUT ON;
+SET LINESIZE 150;
+SET PAGESIZE 100;
+
+-- 1. TABLES CREATION
+CREATE TABLE categories (
+  category_id NUMBER PRIMARY KEY,
+  category_name VARCHAR2(50) NOT NULL
+);
+
+CREATE TABLE authors (
+  author_id NUMBER PRIMARY KEY,
+  author_name VARCHAR2(100) NOT NULL
+);
+
+CREATE TABLE books (
+  book_id NUMBER PRIMARY KEY,
+  title VARCHAR2(150) NOT NULL,
+  author_id NUMBER REFERENCES authors(author_id),
+  category_id NUMBER REFERENCES categories(category_id),
+  publication_year NUMBER(4),
+  total_copies NUMBER DEFAULT 1,
+  available_copies NUMBER DEFAULT 1
+);
+
+CREATE TABLE members (
+  member_id NUMBER PRIMARY KEY,
+  member_name VARCHAR2(100) NOT NULL,
+  email VARCHAR2(100) UNIQUE,
+  phone VARCHAR2(15),
+  join_date DATE DEFAULT SYSDATE
+);
+
+CREATE TABLE loans (
+  loan_id NUMBER PRIMARY KEY,
+  book_id NUMBER REFERENCES books(book_id),
+  member_id NUMBER REFERENCES members(member_id),
+  issue_date DATE DEFAULT SYSDATE,
+  due_date DATE,
+  return_date DATE
+);
+
+-- 2. SEQUENCES
+CREATE SEQUENCE category_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE author_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE book_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE member_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE loan_seq START WITH 1 INCREMENT BY 1;
+
+-- 3. INSERT DATA
+INSERT INTO categories VALUES (category_seq.NEXTVAL, 'Programming');
+INSERT INTO categories VALUES (category_seq.NEXTVAL, 'Database');
+INSERT INTO categories VALUES (category_seq.NEXTVAL, 'Fiction');
+INSERT INTO categories VALUES (category_seq.NEXTVAL, 'Science');
+INSERT INTO categories VALUES (category_seq.NEXTVAL, 'History');
+
+INSERT INTO authors VALUES (author_seq.NEXTVAL, 'Robert C. Martin');
+INSERT INTO authors VALUES (author_seq.NEXTVAL, 'Ramez Elmasri');
+INSERT INTO authors VALUES (author_seq.NEXTVAL, 'George Orwell');
+INSERT INTO authors VALUES (author_seq.NEXTVAL, 'Stephen Hawking');
+INSERT INTO authors VALUES (author_seq.NEXTVAL, 'Yuval Noah Harari');
+
+INSERT INTO books VALUES (book_seq.NEXTVAL, 'Clean Code', 1, 1, 2008, 5, 4);
+INSERT INTO books VALUES (book_seq.NEXTVAL, 'Database Systems', 2, 2, 2016, 4, 3);
+INSERT INTO books VALUES (book_seq.NEXTVAL, '1984', 3, 3, 1949, 6, 5);
+INSERT INTO books VALUES (book_seq.NEXTVAL, 'A Brief History of Time', 4, 4, 1988, 3, 2);
+INSERT INTO books VALUES (book_seq.NEXTVAL, 'Sapiens', 5, 5, 2011, 5, 5);
+INSERT INTO books VALUES (book_seq.NEXTVAL, 'The Art of Computer Programming', 1, 1, 2000, 2, 2);
+
+INSERT INTO members VALUES (member_seq.NEXTVAL, 'Arun Kumar', 'arun@gmail.com', '9876543210', DATE '2025-01-10');
+INSERT INTO members VALUES (member_seq.NEXTVAL, 'Priya Sharma', 'priya@gmail.com', '9876543211', DATE '2025-02-15');
+INSERT INTO members VALUES (member_seq.NEXTVAL, 'Rahul Das', 'rahul@gmail.com', '9876543212', DATE '2025-03-20');
+INSERT INTO members VALUES (member_seq.NEXTVAL, 'Sneha Rao', 'sneha@gmail.com', '9876543213', DATE '2025-04-05');
+
+INSERT INTO loans VALUES (loan_seq.NEXTVAL, 1, 1, DATE '2025-06-01', DATE '2025-06-15', DATE '2025-06-12');
+INSERT INTO loans VALUES (loan_seq.NEXTVAL, 2, 2, DATE '2025-06-05', DATE '2025-06-19', NULL);
+INSERT INTO loans VALUES (loan_seq.NEXTVAL, 3, 3, DATE '2025-06-10', DATE '2025-06-24', DATE '2025-06-20');
+INSERT INTO loans VALUES (loan_seq.NEXTVAL, 4, 4, DATE '2025-06-12', DATE '2025-06-26', NULL);
+COMMIT;
+
+-- 4. QUERIES
+SELECT book_id, title, publication_year, total_copies, available_copies FROM books ORDER BY book_id;
+
+SELECT b.book_id, b.title, a.author_name, c.category_name, b.publication_year, b.available_copies
+FROM books b JOIN authors a ON b.author_id = a.author_id JOIN categories c ON b.category_id = c.category_id ORDER BY b.book_id;
+
+SELECT member_id, member_name, email, phone, join_date FROM members ORDER BY member_id;
+
+SELECT book_id, title, available_copies FROM books WHERE available_copies > 0 ORDER BY book_id;
+
+SELECT book_id, title FROM books WHERE LOWER(title) LIKE '%computer%';
+
+SELECT title, publication_year FROM books WHERE publication_year > 2000 ORDER BY publication_year;
+
+SELECT COUNT(*) AS total_book_titles FROM books;
+
+SELECT SUM(total_copies) AS total_copies FROM books;
+
+SELECT SUM(available_copies) AS available_copies FROM books;
+
+SELECT COUNT(*) AS total_members FROM members;
+
+SELECT c.category_name, COUNT(b.book_id) AS number_of_books
+FROM categories c LEFT JOIN books b ON c.category_id = b.category_id
+GROUP BY c.category_name ORDER BY c.category_name;
+
+SELECT l.loan_id, m.member_name, b.title, l.issue_date, l.due_date, l.return_date
+FROM loans l JOIN members m ON l.member_id = m.member_id JOIN books b ON l.book_id = b.book_id ORDER BY l.loan_id;
+
+SELECT l.loan_id, m.member_name, b.title, l.issue_date, l.due_date
+FROM loans l JOIN members m ON l.member_id = m.member_id JOIN books b ON l.book_id = b.book_id
+WHERE l.return_date IS NULL ORDER BY l.loan_id;
+
+SELECT m.member_name, COUNT(l.loan_id) AS books_borrowed
+FROM members m LEFT JOIN loans l ON m.member_id = l.member_id
+GROUP BY m.member_id, m.member_name ORDER BY m.member_id;
+
+SELECT b.book_id, b.title FROM books b LEFT JOIN loans l ON b.book_id = l.book_id WHERE l.loan_id IS NULL ORDER BY b.book_id;
+
+SELECT l.loan_id, m.member_name, b.title, l.due_date
+FROM loans l JOIN members m ON l.member_id = m.member_id JOIN books b ON l.book_id = b.book_id
+WHERE l.return_date IS NULL AND l.due_date < TRUNC(SYSDATE) ORDER BY l.loan_id;
+
+SELECT l.loan_id, m.member_name, b.title, l.due_date,
+CASE WHEN NVL(l.return_date, TRUNC(SYSDATE)) > l.due_date THEN (NVL(l.return_date, TRUNC(SYSDATE)) - l.due_date) * 5 ELSE 0 END AS fine_amount
+FROM loans l JOIN members m ON l.member_id = m.member_id JOIN books b ON l.book_id = b.book_id ORDER BY l.loan_id;
+
+-- 5. PL/SQL BLOCKS - SUMMARY
+DECLARE
+  v_books NUMBER;
+  v_copies NUMBER;
+  v_available NUMBER;
+  v_members NUMBER;
+  v_loans NUMBER;
+BEGIN
+  SELECT COUNT(*) INTO v_books FROM books;
+  SELECT SUM(total_copies) INTO v_copies FROM books;
+  SELECT SUM(available_copies) INTO v_available FROM books;
+  SELECT COUNT(*) INTO v_members FROM members;
+  SELECT COUNT(*) INTO v_loans FROM loans WHERE return_date IS NULL;
+  DBMS_OUTPUT.PUT_LINE('==========================================');
+  DBMS_OUTPUT.PUT_LINE('       LIBRARY MANAGEMENT SYSTEM');
+  DBMS_OUTPUT.PUT_LINE('==========================================');
+  DBMS_OUTPUT.PUT_LINE('Total Book Titles : ' || v_books);
+  DBMS_OUTPUT.PUT_LINE('Total Copies     : ' || v_copies);
+  DBMS_OUTPUT.PUT_LINE('Available Copies : ' || v_available);
+  DBMS_OUTPUT.PUT_LINE('Total Members    : ' || v_members);
+  DBMS_OUTPUT.PUT_LINE('Active Loans     : ' || v_loans);
+  DBMS_OUTPUT.PUT_LINE('==========================================');
+END;
+/
+
+-- 6. CURSOR - BOOK LIST
+DECLARE
+  CURSOR book_cursor IS
+    SELECT b.title, a.author_name FROM books b JOIN authors a ON b.author_id = a.author_id ORDER BY b.book_id;
+BEGIN
+  DBMS_OUTPUT.PUT_LINE('');
+  DBMS_OUTPUT.PUT_LINE('========= BOOK LIST =========');
+  FOR r IN book_cursor LOOP
+    DBMS_OUTPUT.PUT_LINE(r.title || ' - ' || r.author_name);
+  END LOOP;
+END;
+/
+
+-- 7. VIEWS
+CREATE OR REPLACE VIEW book_details AS
+SELECT b.book_id, b.title, a.author_name, c.category_name, b.publication_year, b.total_copies, b.available_copies
+FROM books b JOIN authors a ON b.author_id = a.author_id JOIN categories c ON b.category_id = c.category_id;
+
+CREATE OR REPLACE VIEW active_loans AS
+SELECT l.loan_id, m.member_name, b.title, l.issue_date, l.due_date
+FROM loans l JOIN members m ON l.member_id = m.member_id JOIN books b ON l.book_id = b.book_id
+WHERE l.return_date IS NULL;
+
+SELECT * FROM book_details ORDER BY book_id;
+SELECT * FROM active_loans ORDER BY loan_id;
+
+-- 8. FUNCTION - CALCULATE FINE
+CREATE OR REPLACE FUNCTION calculate_fine(p_loan_id NUMBER) RETURN NUMBER IS
+  v_due_date DATE;
+  v_return_date DATE;
+  v_fine NUMBER;
+BEGIN
+  SELECT due_date, return_date INTO v_due_date, v_return_date FROM loans WHERE loan_id = p_loan_id;
+  IF NVL(v_return_date, TRUNC(SYSDATE)) > v_due_date THEN
+    v_fine := (NVL(v_return_date, TRUNC(SYSDATE)) - v_due_date) * 5;
+  ELSE
+    v_fine := 0;
+  END IF;
+  RETURN v_fine;
+EXCEPTION WHEN NO_DATA_FOUND THEN RETURN 0;
+END;
+/
+SELECT loan_id, calculate_fine(loan_id) AS fine FROM loans ORDER BY loan_id;
+
+-- 9. PROCEDURE - ISSUE BOOK
+CREATE OR REPLACE PROCEDURE issue_book(p_book_id NUMBER, p_member_id NUMBER) IS
+  v_available NUMBER;
+BEGIN
+  SELECT available_copies INTO v_available FROM books WHERE book_id = p_book_id;
+  IF v_available > 0 THEN
+    INSERT INTO loans (loan_id, book_id, member_id, issue_date, due_date)
+    VALUES (loan_seq.NEXTVAL, p_book_id, p_member_id, TRUNC(SYSDATE), TRUNC(SYSDATE)+14);
+    UPDATE books SET available_copies = available_copies - 1 WHERE book_id = p_book_id;
+    COMMIT;
+    DBMS_OUTPUT.PUT_LINE('Book issued successfully.');
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('Book is not available.');
+  END IF;
+EXCEPTION WHEN NO_DATA_FOUND THEN DBMS_OUTPUT.PUT_LINE('Book does not exist.');
+END;
+/
+BEGIN issue_book(5, 1); END;
+/
+
+-- 10. PROCEDURE - RETURN BOOK
+CREATE OR REPLACE PROCEDURE return_book(p_loan_id NUMBER) IS
+  v_book_id NUMBER;
+  v_return_date DATE;
+BEGIN
+  SELECT book_id, return_date INTO v_book_id, v_return_date FROM loans WHERE loan_id = p_loan_id;
+  IF v_return_date IS NULL THEN
+    UPDATE loans SET return_date = TRUNC(SYSDATE) WHERE loan_id = p_loan_id;
+    UPDATE books SET available_copies = available_copies + 1 WHERE book_id = v_book_id;
+    COMMIT;
+    DBMS_OUTPUT.PUT_LINE('Book returned successfully.');
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('Book was already returned.');
+  END IF;
+EXCEPTION WHEN NO_DATA_FOUND THEN DBMS_OUTPUT.PUT_LINE('Loan record does not exist.');
+END;
+/
+BEGIN return_book(2); END;
+/
+
+-- 11. FINAL CHECK
+SELECT b.book_id, b.title, a.author_name, c.category_name, b.total_copies, b.available_copies
+FROM books b JOIN authors a ON b.author_id = a.author_id JOIN categories c ON b.category_id = c.category_id ORDER BY b.book_id;
+
+BEGIN
+  DBMS_OUTPUT.PUT_LINE('');
+  DBMS_OUTPUT.PUT_LINE('==========================================');
+  DBMS_OUTPUT.PUT_LINE(' LIBRARY PROJECT EXECUTED SUCCESSFULLY');
+  DBMS_OUTPUT.PUT_LINE('==========================================');
+END;
+/
+COMMIT;
